@@ -1,0 +1,40 @@
+[package]
+name = "bytepath-rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "bytepath-rs"
+path = "src/main.rs"
+
+[dependencies]
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_ui",
+    "bevy_text",
+    "bevy_asset",
+    "bevy_window",
+    "bevy_winit",
+    "bevy_state",
+    "default_font",
+    "hdr",
+    "tonemapping_luts",
+    "x11",
+    "wayland",
+] }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = true
