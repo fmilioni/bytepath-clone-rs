@@ -37,8 +37,8 @@ use main_menu::{
     despawn_main_menu, main_menu_input, spawn_main_menu, update_main_menu, MainMenuState,
 };
 use scenario_select::{
-    despawn_scenario_select, scenario_select_input, spawn_scenario_select,
-    update_scenario_select_ui, update_win_overlay,
+    despawn_scenario_select, init_star_tint, scenario_select_input, spawn_scenario_select,
+    tint_stars_scenario_select, update_scenario_map, update_win_overlay,
 };
 use ship_select::{
     despawn_ship_select, rotate_preview, ship_select_input, spawn_ship_select,
@@ -350,11 +350,11 @@ impl Plugin for UiPlugin {
                     .run_if(in_state(GameState::ShipSelect)),
             )
             // ── Scenario Select ───────────────────────────────────
-            .add_systems(OnEnter(GameState::ScenarioSelect), spawn_scenario_select)
+            .add_systems(OnEnter(GameState::ScenarioSelect), (spawn_scenario_select, init_star_tint))
             .add_systems(OnExit(GameState::ScenarioSelect), despawn_scenario_select)
             .add_systems(
                 Update,
-                (scenario_select_input, update_scenario_select_ui, check_campaign_complete)
+                (scenario_select_input, update_scenario_map, tint_stars_scenario_select, check_campaign_complete)
                     .run_if(in_state(GameState::ScenarioSelect)),
             )
             .add_systems(OnExit(GameState::ScenarioSelect), despawn_campaign_complete)

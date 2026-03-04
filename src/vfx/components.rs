@@ -43,3 +43,7 @@ pub struct Star {
 /// Anel visual do escudo — filho do player, visível quando shield.current > 0.
 #[derive(Component)]
 pub struct ShieldRing;
+
+/// Elemento de background temático por região (despawnado ao sair de Playing).
+#[derive(Component)]
+pub struct RegionAmbient;

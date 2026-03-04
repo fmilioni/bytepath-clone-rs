@@ -1,12 +1,14 @@
+use bevy::core_pipeline::bloom::Bloom;
 use bevy::prelude::*;
 use bevy::render::camera::Viewport;
 use rand::Rng;
 
+use crate::campaign::components::{ActiveScenario, Region};
 use crate::combat::components::{DeathEvent, Shield};
-use crate::constants::{COLOR_STAR, HALF_H, HALF_W, Z_BACKGROUND, Z_STAR, Z_VFX};
+use crate::constants::{COLOR_BACKGROUND, COLOR_STAR, HALF_H, HALF_W, Z_BACKGROUND, Z_STAR, Z_VFX};
 use crate::player::components::Player;
 
-use super::components::{GameCamera, Particle, ScreenShake, ShieldRing, Star, TrailSegment};
+use super::components::{GameCamera, Particle, RegionAmbient, ScreenShake, ShieldRing, Star, TrailSegment};
 use super::particles::spawn_enemy_death_explosion;
 
 const MAX_SHAKE_OFFSET: f32 = 18.0;
@@ -244,4 +246,202 @@ pub fn update_letterbox(
         physical_size: UVec2::new(vp_w, vp_h),
         ..default()
     });
+}
+
+// ── Background temático por região ────────────────────────────────────────────
+
+/// Spawna elementos de ambiente ao entrar em Playing.
+/// Guard contra re-spawn ao voltar de Paused.
+pub fn spawn_region_background(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    active: Res<ActiveScenario>,
+    mut clear_color: ResMut<ClearColor>,
+    star_q: Query<&MeshMaterial2d<ColorMaterial>, With<Star>>,
+    mut cam_q: Query<&mut Bloom, With<GameCamera>>,
+    existing: Query<(), With<RegionAmbient>>,
+) {
+    if !existing.is_empty() || active.id == 0 {
+        return;
+    }
+
+    let region = active.def().region;
+
+    clear_color.0 = region.bg_color();
+
+    let tint = region.star_tint();
+    for mat_handle in star_q.iter() {
+        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+            mat.color = tint;
+        }
+    }
+
+    if let Ok(mut bloom) = cam_q.get_single_mut() {
+        bloom.intensity = match region {
+            Region::Frontier     => 0.35,
+            Region::Nebula       => 0.55,
+            Region::AsteroidBelt => 0.40,
+            Region::Void         => 0.28,
+            Region::Core         => 0.65,
+        };
+    }
+
+    spawn_ambient_for_region(&mut commands, &mut meshes, &mut materials, region);
+}
+
+/// Remove elementos de ambiente e restaura defaults ao sair de Playing.
+pub fn despawn_region_background(
+    mut commands: Commands,
+    ambient_q: Query<Entity, With<RegionAmbient>>,
+    mut clear_color: ResMut<ClearColor>,
+    mut cam_q: Query<&mut Bloom, With<GameCamera>>,
+) {
+    for e in ambient_q.iter() {
+        if let Some(cmd) = commands.get_entity(e) {
+            cmd.despawn_recursive();
+        }
+    }
+    clear_color.0 = COLOR_BACKGROUND;
+    if let Ok(mut bloom) = cam_q.get_single_mut() {
+        bloom.intensity = 0.4;
+    }
+}
+
+/// Reseta cor das estrelas para o padrão nos estados de não-gameplay.
+pub fn reset_stars_default(
+    star_q: Query<&MeshMaterial2d<ColorMaterial>, With<Star>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    for mat_handle in star_q.iter() {
+        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+            mat.color = COLOR_STAR;
+        }
+    }
+}
+
+// ── Helpers de spawn por região ───────────────────────────────────────────────
+
+fn ambient(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    pos: Vec2,
+    radius: f32,
+    color: Color,
+    z: f32,
+) {
+    commands.spawn((
+        RegionAmbient,
+        Mesh2d(meshes.add(Circle::new(radius))),
+        MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
+        Transform::from_xyz(pos.x, pos.y, z),
+    ));
+}
+
+fn spawn_ambient_for_region(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    region: Region,
+) {
+    match region {
+        Region::Frontier     => spawn_frontier_ambient(commands, meshes, materials),
+        Region::Nebula       => spawn_nebula_ambient(commands, meshes, materials),
+        Region::AsteroidBelt => spawn_belt_ambient(commands, meshes, materials),
+        Region::Void         => spawn_void_ambient(commands, meshes, materials),
+        Region::Core         => spawn_core_ambient(commands, meshes, materials),
+    }
+}
+
+fn spawn_frontier_ambient(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+) {
+    let clouds = [
+        (Vec2::new(-350.0,  190.0), 145.0, Color::srgba(0.0, 0.55, 0.15, 0.07)),
+        (Vec2::new( 300.0, -120.0), 115.0, Color::srgba(0.0, 0.45, 0.12, 0.06)),
+        (Vec2::new(-120.0, -230.0),  90.0, Color::srgba(0.0, 0.65, 0.20, 0.05)),
+        (Vec2::new( 460.0,  210.0), 100.0, Color::srgba(0.0, 0.35, 0.10, 0.05)),
+    ];
+    for (pos, r, c) in clouds {
+        ambient(commands, meshes, materials, pos, r, c, 0.08);
+    }
+}
+
+fn spawn_nebula_ambient(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+) {
+    let clouds = [
+        (Vec2::new(-380.0,  160.0), 185.0, Color::srgba(0.55, 0.0, 0.85, 0.09)),
+        (Vec2::new( 260.0,  190.0), 165.0, Color::srgba(0.30, 0.0, 0.90, 0.08)),
+        (Vec2::new(-110.0, -150.0), 155.0, Color::srgba(0.65, 0.0, 0.70, 0.08)),
+        (Vec2::new( 390.0, -170.0), 135.0, Color::srgba(0.20, 0.1, 0.80, 0.07)),
+        (Vec2::new(  20.0,  255.0), 125.0, Color::srgba(0.70, 0.0, 0.60, 0.06)),
+        (Vec2::new( -90.0,   70.0),  80.0, Color::srgba(0.90, 0.2, 1.10, 0.05)),
+    ];
+    for (pos, r, c) in clouds {
+        ambient(commands, meshes, materials, pos, r, c, 0.08);
+    }
+}
+
+fn spawn_belt_ambient(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+) {
+    let clouds = [
+        (Vec2::new(-330.0,  -80.0), 145.0, Color::srgba(0.65, 0.30, 0.05, 0.07)),
+        (Vec2::new( 160.0,  185.0), 125.0, Color::srgba(0.55, 0.25, 0.0,  0.07)),
+        (Vec2::new( 430.0,  110.0), 115.0, Color::srgba(0.70, 0.35, 0.05, 0.06)),
+        (Vec2::new(-110.0,   60.0), 105.0, Color::srgba(0.45, 0.20, 0.02, 0.06)),
+        (Vec2::new( 260.0, -230.0),  90.0, Color::srgba(0.55, 0.22, 0.0,  0.05)),
+    ];
+    for (pos, r, c) in clouds {
+        ambient(commands, meshes, materials, pos, r, c, 0.08);
+    }
+}
+
+fn spawn_void_ambient(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+) {
+    let bh = Vec2::new(220.0, 90.0);
+
+    // Aura gravitacional
+    ambient(commands, meshes, materials, bh, 140.0, Color::srgba(0.0, 0.10, 0.50, 0.12), 0.08);
+    // Disco de acreção externo
+    ambient(commands, meshes, materials, bh,  98.0, Color::srgba(0.0, 0.40, 1.20, 0.22), 0.12);
+    // Disco de acreção interno (mais brilhante)
+    ambient(commands, meshes, materials, bh,  80.0, Color::srgba(0.2, 0.65, 1.60, 0.30), 0.13);
+    // Horizonte de eventos — preto opaco
+    ambient(commands, meshes, materials, bh,  62.0, Color::srgb(0.0, 0.0, 0.0),         0.14);
+
+    // Halos espaciais distantes
+    ambient(commands, meshes, materials, Vec2::new(-360.0,  175.0), 120.0, Color::srgba(0.0, 0.10, 0.40, 0.06), 0.08);
+    ambient(commands, meshes, materials, Vec2::new( 430.0, -195.0), 100.0, Color::srgba(0.0, 0.08, 0.35, 0.05), 0.08);
+    ambient(commands, meshes, materials, Vec2::new( -70.0, -260.0),  90.0, Color::srgba(0.0, 0.06, 0.30, 0.06), 0.08);
+}
+
+fn spawn_core_ambient(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+) {
+    let clouds = [
+        (Vec2::new(-210.0,  155.0), 165.0, Color::srgba(1.10, 0.10, 0.0, 0.09)),
+        (Vec2::new( 310.0, -105.0), 145.0, Color::srgba(0.95, 0.20, 0.0, 0.09)),
+        (Vec2::new(   0.0,    0.0), 125.0, Color::srgba(1.20, 0.05, 0.0, 0.07)),
+        (Vec2::new(-390.0, -175.0), 115.0, Color::srgba(0.85, 0.15, 0.0, 0.08)),
+        (Vec2::new( 160.0,  255.0), 105.0, Color::srgba(1.10, 0.30, 0.0, 0.07)),
+        // Núcleo central — HDR para bloom intenso
+        (Vec2::new(  0.0,    0.0),   55.0, Color::srgba(2.0,  0.0,  0.0, 0.06)),
+    ];
+    for (pos, r, c) in clouds {
+        ambient(commands, meshes, materials, pos, r, c, 0.08);
+    }
 }

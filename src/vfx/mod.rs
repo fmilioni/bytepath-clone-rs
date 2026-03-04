@@ -7,8 +7,9 @@ use crate::states::GameState;
 
 use components::ScreenShake;
 use systems::{
-    apply_screen_shake, drift_stars_menu, on_death_particles, spawn_stars, spawn_trail,
-    update_letterbox, update_particles, update_shield_ring, update_trail,
+    apply_screen_shake, despawn_region_background, drift_stars_menu, on_death_particles,
+    reset_stars_default, spawn_region_background, spawn_stars, spawn_trail, update_letterbox,
+    update_particles, update_shield_ring, update_trail,
 };
 
 pub struct VfxPlugin;
@@ -16,9 +17,7 @@ pub struct VfxPlugin;
 impl Plugin for VfxPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ScreenShake>()
-            // Estrelas existem em todos os estados (spawnam uma vez no início)
             .add_systems(Startup, spawn_stars)
-            // Letterbox: roda em todos os estados para manter aspect ratio
             .add_systems(Update, update_letterbox)
             // Drift de estrelas nos menus
             .add_systems(
@@ -30,6 +29,18 @@ impl Plugin for VfxPlugin {
                         .or(in_state(GameState::GameOver)),
                 ),
             )
+            // Background temático: spawn ao entrar em Playing
+            .add_systems(OnEnter(GameState::Playing), spawn_region_background)
+            // Background temático: cleanup ao sair de Playing de verdade
+            .add_systems(
+                OnEnter(GameState::ScenarioSelect),
+                despawn_region_background,
+            )
+            .add_systems(
+                OnEnter(GameState::GameOver),
+                (despawn_region_background, reset_stars_default),
+            )
+            // Sistemas de gameplay (Playing + Paused para trail continuar)
             .add_systems(
                 Update,
                 (

@@ -35,6 +35,28 @@ impl Region {
             Region::Core         => Color::srgb(8.0, 0.5, 0.0),
         }
     }
+
+    /// Cor de tint das estrelas quando jogando nesta região.
+    pub fn star_tint(self) -> Color {
+        match self {
+            Region::Frontier     => Color::srgb(0.9, 2.2, 1.2),
+            Region::Nebula       => Color::srgb(2.5, 0.5, 3.5),
+            Region::AsteroidBelt => Color::srgb(2.8, 1.6, 0.4),
+            Region::Void         => Color::srgb(0.4, 0.8, 2.8),
+            Region::Core         => Color::srgb(3.0, 0.4, 0.2),
+        }
+    }
+
+    /// ClearColor de fundo ao jogar nesta região.
+    pub fn bg_color(self) -> Color {
+        match self {
+            Region::Frontier     => Color::srgb(0.01, 0.03, 0.01),
+            Region::Nebula       => Color::srgb(0.03, 0.01, 0.06),
+            Region::AsteroidBelt => Color::srgb(0.04, 0.02, 0.01),
+            Region::Void         => Color::srgb(0.0,  0.0,  0.02),
+            Region::Core         => Color::srgb(0.06, 0.01, 0.0),
+        }
+    }
 }
 
 // ── Definição de cenário ──────────────────────────────────────────────────────
