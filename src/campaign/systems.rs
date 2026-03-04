@@ -109,14 +109,13 @@ pub fn track_scenario_kills(
     mut death_events: EventReader<DeathEvent>,
     mut kill_count: ResMut<ScenarioKillCount>,
     active: Res<ActiveScenario>,
-    boss_q: Query<(), With<Boss>>,
 ) {
     if active.id == 0 { return; }
 
     for event in death_events.read() {
         if !event.was_enemy { continue; }
 
-        if boss_q.contains(event.entity) {
+        if event.is_boss {
             kill_count.boss_killed = true;
             info!("Boss derrotado! Cenário completo.");
         } else {

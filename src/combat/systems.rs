@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::{DamageEvent, DeathEvent, Energy, Health, Shield, SelfHandlesDespawn};
+use crate::bosses::components::Boss;
 use crate::enemies::components::Enemy;
 use crate::player::components::Player;
 
@@ -29,6 +30,7 @@ pub fn apply_damage(
     mut shield_query: Query<&mut Shield>,
     mut death_events: EventWriter<DeathEvent>,
     transform_query: Query<(&Transform, Option<&Enemy>)>,
+    boss_query: Query<(), With<Boss>>,
 ) {
     for event in damage_events.read() {
         let Ok(mut health) = health_query.get_mut(event.target) else {
@@ -55,6 +57,7 @@ pub fn apply_damage(
                 entity: event.target,
                 position: pos,
                 was_enemy: enemy_opt.is_some(),
+                is_boss: boss_query.contains(event.target),
             });
         }
     }

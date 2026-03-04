@@ -77,4 +77,5 @@ pub struct DeathEvent {
     pub entity: Entity,
     pub position: Vec2,
     pub was_enemy: bool,
+    pub is_boss: bool,
 }
