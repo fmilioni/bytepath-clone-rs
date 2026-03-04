@@ -61,7 +61,7 @@ pub fn spawn_shop_ui(mut commands: Commands) {
                 })
                 .with_children(|header| {
                     header.spawn((
-                        Text::new("LOJA  [E = fechar | A/D = selecionar | ENTER = comprar | R = reroll (30cr)]"),
+                        Text::new("LOJA  [E = fechar | ↑↓ = selecionar | ENTER = comprar | R = reroll (30cr)]"),
                         TextFont { font_size: 13.0, ..default() },
                         TextColor(Color::srgb(0.5, 0.5, 0.6)),
                     ));

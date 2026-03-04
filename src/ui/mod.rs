@@ -46,6 +46,124 @@ use ship_select::{
 };
 use skill_tree_ui::{spawn_skill_tree_ui, update_skill_tree_ui, SkillTreeUiRoot};
 use crate::shop::ui::{spawn_shop_ui, ShopUiRoot};
+use crate::shop::components::ShopUiState;
+use crate::skill_tree::components::SkillTreeUiState;
+
+// ── Pause Menu ────────────────────────────────────────────────────────────────
+
+#[derive(Resource, Default)]
+struct PauseMenuState {
+    selected: usize, // 0=Continuar 1=Sair
+}
+
+#[derive(Component)]
+struct PauseOverlayRoot;
+
+#[derive(Component)]
+struct PauseMenuOption(usize);
+
+fn spawn_pause_overlay(mut commands: Commands) {
+    commands.spawn((
+        PauseOverlayRoot,
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(0.0),
+            left: Val::Px(0.0),
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(18.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.65)),
+        Visibility::Hidden,
+    ))
+    .with_children(|p| {
+        p.spawn((
+            Text::new("PAUSADO"),
+            TextFont { font_size: 56.0, ..default() },
+            TextColor(Color::srgb(8.0, 8.0, 4.0)),
+        ));
+
+        p.spawn(Node { height: Val::Px(16.0), ..default() });
+
+        for (i, label) in ["CONTINUAR", "SAIR"].iter().enumerate() {
+            p.spawn((
+                PauseMenuOption(i),
+                Text::new(format!("   {}   ", label)),
+                TextFont { font_size: 28.0, ..default() },
+                TextColor(Color::srgb(0.35, 0.35, 0.45)),
+            ));
+        }
+
+        p.spawn(Node { height: Val::Px(16.0), ..default() });
+
+        p.spawn((
+            Text::new("↑↓  —  selecionar     ENTER  —  confirmar"),
+            TextFont { font_size: 13.0, ..default() },
+            TextColor(Color::srgb(0.28, 0.28, 0.35)),
+        ));
+    });
+}
+
+fn despawn_pause_overlay(
+    mut commands: Commands,
+    q: Query<Entity, With<PauseOverlayRoot>>,
+) {
+    for e in q.iter() { commands.entity(e).despawn_recursive(); }
+}
+
+fn update_pause_overlay(
+    shop_state: Res<ShopUiState>,
+    skill_ui: Res<SkillTreeUiState>,
+    pause_menu: Res<PauseMenuState>,
+    mut root_q: Query<&mut Visibility, With<PauseOverlayRoot>>,
+    mut option_q: Query<(&PauseMenuOption, &mut Text, &mut TextColor)>,
+) {
+    let Ok(mut vis) = root_q.get_single_mut() else { return; };
+    *vis = if !shop_state.open && !skill_ui.open {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+
+    const LABELS: [&str; 2] = ["CONTINUAR", "SAIR"];
+    for (opt, mut text, mut color) in option_q.iter_mut() {
+        if opt.0 == pause_menu.selected {
+            **text = format!("▶  {}  ◀", LABELS[opt.0]);
+            *color = TextColor(Color::srgb(8.0, 8.0, 4.0));
+        } else {
+            **text = format!("   {}   ", LABELS[opt.0]);
+            *color = TextColor(Color::srgb(0.35, 0.35, 0.45));
+        }
+    }
+}
+
+fn pause_menu_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    shop_state: Res<ShopUiState>,
+    skill_ui: Res<SkillTreeUiState>,
+    mut pause_menu: ResMut<PauseMenuState>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if shop_state.open || skill_ui.open { return; }
+
+    let up   = keys.just_pressed(KeyCode::KeyW) || keys.just_pressed(KeyCode::ArrowUp);
+    let down = keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::ArrowDown);
+
+    if up   && pause_menu.selected > 0 { pause_menu.selected -= 1; }
+    if down && pause_menu.selected < 1 { pause_menu.selected += 1; }
+
+    if keys.just_pressed(KeyCode::Enter) {
+        match pause_menu.selected {
+            0 => next_state.set(GameState::Playing),
+            _ => next_state.set(GameState::ScenarioSelect),
+        }
+        pause_menu.selected = 0;
+    }
+}
 
 // ── Game Over overlay ─────────────────────────────────────────────────────────
 
@@ -212,6 +330,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<MainMenuState>()
+            .init_resource::<PauseMenuState>()
             .add_systems(Startup, load_game_font)
             .add_systems(Update, apply_font_to_new_text)
             // ── Main Menu ─────────────────────────────────────────
@@ -245,12 +364,16 @@ impl Plugin for UiPlugin {
                 (spawn_hud, spawn_boss_hud, spawn_skill_tree_ui, spawn_shop_ui),
             )
             .add_systems(OnExit(GameState::Playing), despawn_playing_ui)
-            // Ao entrar em Paused (via Tab/E), re-spawna os overlays que OnExit(Playing) destruiu
+            // Ao entrar em Paused, re-spawna os overlays que OnExit(Playing) destruiu
             .add_systems(
                 OnEnter(GameState::Paused),
-                (spawn_skill_tree_ui, spawn_shop_ui),
+                (spawn_skill_tree_ui, spawn_shop_ui, spawn_pause_overlay),
             )
-            .add_systems(OnExit(GameState::Paused), despawn_paused_ui)
+            .add_systems(OnExit(GameState::Paused), (despawn_paused_ui, despawn_pause_overlay))
+            .add_systems(
+                Update,
+                (update_pause_overlay, pause_menu_input).run_if(in_state(GameState::Paused)),
+            )
             .add_systems(
                 Update,
                 (update_hud, update_boss_hud, update_win_overlay)

@@ -22,16 +22,22 @@ fn close_on_esc(
     keys: Res<ButtonInput<KeyCode>>,
     state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut shop_state: ResMut<shop::components::ShopUiState>,
+    mut skill_ui: ResMut<skill_tree::components::SkillTreeUiState>,
 ) {
     if !keys.just_pressed(KeyCode::Escape) { return; }
 
     match state.get() {
-        GameState::Playing        => { next_state.set(GameState::ScenarioSelect); }
+        GameState::Playing        => { next_state.set(GameState::Paused); }
         GameState::ScenarioSelect => { next_state.set(GameState::ShipSelect); }
         GameState::ShipSelect     => { next_state.set(GameState::MainMenu); }
         GameState::GameOver       => { next_state.set(GameState::MainMenu); }
         GameState::MainMenu       => { let _ = app_exit.send(AppExit::Success); }
-        // Paused: fechado por skill tree (Tab) ou loja (E)
+        GameState::Paused => {
+            shop_state.open = false;
+            skill_ui.open = false;
+            next_state.set(GameState::Playing);
+        }
         _ => {}
     }
 }

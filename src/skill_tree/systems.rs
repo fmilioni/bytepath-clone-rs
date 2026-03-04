@@ -7,6 +7,7 @@ use crate::player::stat_calc::apply_full_stats;
 use crate::shop::components::PlayerInventory;
 use crate::weapons::components::WeaponCooldown;
 
+use crate::shop::components::ShopUiState;
 use super::components::{
     apply_effect_to_skills, PlayerSkills, SkillNodeUnlocked, SkillTreeUiState,
 };
@@ -28,10 +29,13 @@ pub fn award_skill_points(
 pub fn toggle_skill_tree(
     keys: Res<ButtonInput<KeyCode>>,
     mut ui_state: ResMut<SkillTreeUiState>,
+    shop_state: Res<ShopUiState>,
     mut next_state: ResMut<NextState<crate::states::GameState>>,
     current_state: Res<State<crate::states::GameState>>,
 ) {
     if keys.just_pressed(KeyCode::Tab) {
+        // Não abre skill tree se a loja estiver aberta
+        if !ui_state.open && shop_state.open { return; }
         ui_state.open = !ui_state.open;
         if ui_state.open {
             ui_state.selected_cluster = 0;

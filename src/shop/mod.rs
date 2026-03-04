@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use crate::states::GameState;
 
 use components::{Credits, PlayerInventory, ShopUiState};
-use systems::{award_credits, open_close_shop, shop_buy, shop_navigate, shop_reroll};
+use systems::{award_credits, open_close_shop, reset_shop_offer, shop_buy, shop_navigate, shop_reroll};
 use ui::update_shop_ui;
 
 pub struct ShopPlugin;
@@ -17,6 +17,9 @@ impl Plugin for ShopPlugin {
             .init_resource::<Credits>()
             .init_resource::<PlayerInventory>()
             .init_resource::<ShopUiState>()
+            // Reseta oferta ao fim do cenário (morte ou vitória/nova seleção)
+            .add_systems(OnEnter(GameState::GameOver), reset_shop_offer)
+            .add_systems(OnEnter(GameState::ScenarioSelect), reset_shop_offer)
             // Créditos só ganhos em Playing
             .add_systems(Update, award_credits.run_if(in_state(GameState::Playing)))
             // Toggle loja roda em Playing e Paused

@@ -39,7 +39,9 @@ pub fn open_close_shop(
         GameState::Playing if !skill_ui.open => {
             shop_state.open = true;
             shop_state.selected = 0;
-            shop_state.offered = generate_offer(&inventory);
+            if shop_state.offered.is_empty() {
+                shop_state.offered = generate_offer(&inventory);
+            }
             next_state.set(GameState::Paused);
         }
         GameState::Paused if shop_state.open => {
@@ -68,10 +70,14 @@ pub fn shop_navigate(
     if !shop_state.open || shop_state.offered.is_empty() { return; }
 
     let len = shop_state.offered.len();
-    if keys.just_pressed(KeyCode::KeyA) || keys.just_pressed(KeyCode::ArrowLeft) {
+    if keys.just_pressed(KeyCode::KeyA) || keys.just_pressed(KeyCode::ArrowLeft)
+        || keys.just_pressed(KeyCode::KeyW) || keys.just_pressed(KeyCode::ArrowUp)
+    {
         shop_state.selected = (shop_state.selected + len - 1) % len;
     }
-    if keys.just_pressed(KeyCode::KeyD) || keys.just_pressed(KeyCode::ArrowRight) {
+    if keys.just_pressed(KeyCode::KeyD) || keys.just_pressed(KeyCode::ArrowRight)
+        || keys.just_pressed(KeyCode::KeyS) || keys.just_pressed(KeyCode::ArrowDown)
+    {
         shop_state.selected = (shop_state.selected + 1) % len;
     }
 }
@@ -110,6 +116,13 @@ pub fn shop_buy(
         let base = selected_class.0.to_ship_stats();
         apply_full_stats(&skills, &inventory, &base, &mut stats, &mut health, &mut shield, &mut energy, &mut cooldown);
     }
+}
+
+/// Reseta a oferta ao iniciar um novo cenário (Playing entra).
+pub fn reset_shop_offer(mut shop_state: ResMut<ShopUiState>) {
+    shop_state.offered.clear();
+    shop_state.selected = 0;
+    shop_state.open = false;
 }
 
 /// Renova a oferta (R) por 30 créditos.
