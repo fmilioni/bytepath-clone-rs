@@ -7,12 +7,15 @@ use crate::player::components::Player;
 use super::components::{Projectile, ProjectileOwner, WeaponCooldown};
 
 /// A nave dispara automaticamente na direção que aponta.
+/// Aim assist sutil: se um inimigo estiver dentro de ~15° na frente do player
+/// e a menos de 400px, a direção da bala é ajustada 30% em direção a ele.
 pub fn player_shoot(
     mut commands: Commands,
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut query: Query<(&Transform, &mut WeaponCooldown, &crate::player::components::ShipStats), With<Player>>,
+    enemy_query: Query<&Transform, With<crate::enemies::components::Enemy>>,
 ) {
     let Ok((transform, mut cooldown, stats)) = query.get_single_mut() else {
         return;
@@ -20,26 +23,52 @@ pub fn player_shoot(
 
     cooldown.0.tick(time.delta());
 
-    if cooldown.0.finished() {
-        cooldown.0.reset();
-
-        let direction = (transform.rotation * Vec3::Y).truncate().normalize();
-        let spawn_pos = transform.translation + (direction * 20.0).extend(0.0);
-
-        commands.spawn((
-            Projectile {
-                damage: stats.bullet_damage,
-                speed: stats.bullet_speed,
-                direction,
-                owner: ProjectileOwner::Player,
-                lifetime: Timer::from_seconds(1.5, TimerMode::Once),
-            },
-            ColliderRadius(4.0),
-            Mesh2d(meshes.add(Circle::new(3.0))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(COLOR_BULLET_PLAYER))),
-            Transform::from_translation(spawn_pos.with_z(Z_BULLET)),
-        ));
+    if !cooldown.0.finished() {
+        return;
     }
+    cooldown.0.reset();
+
+    let aim_dir = (transform.rotation * Vec3::Y).truncate().normalize();
+    let player_pos = transform.translation.truncate();
+
+    // Aim assist: encontra o inimigo mais centralizado dentro do cone de ~15°.
+    // Não dispara para ele — apenas inclina a bala 30% nessa direção.
+    const ASSIST_COS_CONE: f32 = 0.966; // cos(15°) — threshold do cone
+    const ASSIST_STRENGTH: f32 = 0.30;  // quanto a bala é puxada em direção ao alvo
+    let bullet_range = stats.bullet_speed * 1.5; // alcance = velocidade × tempo de vida
+
+    let mut best_dot = ASSIST_COS_CONE;
+    let mut direction = aim_dir;
+
+    for enemy_tf in enemy_query.iter() {
+        let delta = enemy_tf.translation.truncate() - player_pos;
+        let dist = delta.length();
+        if dist < 1.0 || dist > bullet_range {
+            continue;
+        }
+        let to_enemy = delta / dist;
+        let dot = aim_dir.dot(to_enemy);
+        if dot > best_dot {
+            best_dot = dot;
+            direction = aim_dir.lerp(to_enemy, ASSIST_STRENGTH).normalize();
+        }
+    }
+
+    let spawn_pos = transform.translation + (direction * 20.0).extend(0.0);
+
+    commands.spawn((
+        Projectile {
+            damage: stats.bullet_damage,
+            speed: stats.bullet_speed,
+            direction,
+            owner: ProjectileOwner::Player,
+            lifetime: Timer::from_seconds(1.5, TimerMode::Once),
+        },
+        ColliderRadius(4.0),
+        Mesh2d(meshes.add(Circle::new(3.0))),
+        MeshMaterial2d(materials.add(ColorMaterial::from_color(COLOR_BULLET_PLAYER))),
+        Transform::from_translation(spawn_pos.with_z(Z_BULLET)),
+    ));
 }
 
 /// Move projéteis e remove os que expiraram.

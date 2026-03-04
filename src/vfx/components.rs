@@ -39,3 +39,7 @@ pub struct GameCamera;
 pub struct Star {
     pub parallax_factor: f32, // 0.0 = imóvel, 1.0 = move com câmera
 }
+
+/// Anel visual do escudo — filho do player, visível quando shield.current > 0.
+#[derive(Component)]
+pub struct ShieldRing;

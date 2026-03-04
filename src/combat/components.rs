@@ -59,6 +59,11 @@ impl Energy {
 #[derive(Component)]
 pub struct ColliderRadius(pub f32);
 
+/// Marker: esta entidade gerencia seu próprio despawn na morte.
+/// handle_deaths pula o despawn de entidades com este componente.
+#[derive(Component)]
+pub struct SelfHandlesDespawn;
+
 /// Evento: um entity sofreu dano.
 #[derive(Event)]
 pub struct DamageEvent {

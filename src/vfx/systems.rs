@@ -1,11 +1,12 @@
 use bevy::prelude::*;
+use bevy::render::camera::Viewport;
 use rand::Rng;
 
-use crate::combat::components::DeathEvent;
+use crate::combat::components::{DeathEvent, Shield};
 use crate::constants::{COLOR_STAR, HALF_H, HALF_W, Z_BACKGROUND, Z_STAR, Z_VFX};
 use crate::player::components::Player;
 
-use super::components::{GameCamera, Particle, ScreenShake, Star, TrailSegment};
+use super::components::{GameCamera, Particle, ScreenShake, ShieldRing, Star, TrailSegment};
 use super::particles::spawn_enemy_death_explosion;
 
 const MAX_SHAKE_OFFSET: f32 = 18.0;
@@ -189,4 +190,58 @@ pub fn on_death_particles(
             shake.add_trauma(0.15);
         }
     }
+}
+
+/// Mostra/oculta os componentes do anel do escudo conforme shield.current > 0.
+pub fn update_shield_ring(
+    player_query: Query<&Shield, With<Player>>,
+    mut ring_query: Query<&mut Visibility, With<ShieldRing>>,
+) {
+    let Ok(shield) = player_query.get_single() else { return };
+    let target = if shield.current > 0.0 { Visibility::Visible } else { Visibility::Hidden };
+    for mut vis in ring_query.iter_mut() {
+        *vis = target;
+    }
+}
+
+/// Mantém o jogo em 16:9 com letterbox/pillarbox ao redimensionar a janela.
+/// A câmera sempre renderiza exatamente 1280×720 unidades de mundo;
+/// barras pretas (ClearColor) preenchem o espaço restante.
+pub fn update_letterbox(
+    mut camera_query: Query<&mut Camera, With<GameCamera>>,
+    windows: Query<&Window>,
+    mut last_size: Local<(u32, u32)>,
+) {
+    let Ok(window) = windows.get_single() else { return };
+    let win_w = window.physical_width();
+    let win_h = window.physical_height();
+
+    if win_w == 0 || win_h == 0 { return; }
+    if (win_w, win_h) == *last_size { return; }
+    *last_size = (win_w, win_h);
+
+    let Ok(mut camera) = camera_query.get_single_mut() else { return };
+
+    const TARGET_ASPECT: f32 = 16.0 / 9.0;
+    let win_ratio = win_w as f32 / win_h as f32;
+
+    let (vp_w, vp_h, vp_x, vp_y) = if win_ratio > TARGET_ASPECT {
+        // Janela mais larga: pillarbox (barras laterais)
+        let h = win_h;
+        let w = ((win_h as f32 * TARGET_ASPECT).round() as u32).min(win_w);
+        let x = (win_w - w) / 2;
+        (w, h, x, 0)
+    } else {
+        // Janela mais alta: letterbox (barras no topo/base)
+        let w = win_w;
+        let h = ((win_w as f32 / TARGET_ASPECT).round() as u32).min(win_h);
+        let y = (win_h - h) / 2;
+        (w, h, 0, y)
+    };
+
+    camera.viewport = Some(Viewport {
+        physical_position: UVec2::new(vp_x, vp_y),
+        physical_size: UVec2::new(vp_w, vp_h),
+        ..default()
+    });
 }

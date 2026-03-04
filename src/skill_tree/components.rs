@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::player::components::ShipStats;
 use super::data::{SkillEffect, all_nodes};

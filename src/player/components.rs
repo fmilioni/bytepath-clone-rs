@@ -38,6 +38,13 @@ impl Default for ShipStats {
 #[derive(Component, Default)]
 pub struct ShipRotation(pub f32);
 
+/// Cooldown de invencibilidade após levar dano por contato com inimigo.
+/// A colisão com meteoro ignora esse timer — só contato de corpo inimigo verifica.
+#[derive(Component, Default)]
+pub struct EnemyHitCooldown {
+    pub remaining: f32, // segundos restantes; 0.0 = pode levar dano
+}
+
 /// Controle de aceleração/freio da nave.
 /// W aumenta (consome energia), S diminui, sem tecla volta a 1.0.
 #[derive(Component)]

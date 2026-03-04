@@ -1,8 +1,9 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 // ── Catálogo de itens ─────────────────────────────────────────────────────────
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub enum ItemId {
     ThrusterMk2,
     NanoArmor,
@@ -58,29 +59,29 @@ impl ItemId {
     pub fn def(self) -> ItemDef {
         match self {
             ItemId::ThrusterMk2 =>
-                ItemDef { speed_mul: 1.25, ..base_def(self, "Thruster Mk2", "+25% velocidade", 80) },
+                ItemDef { speed_mul: 1.25, ..base_def(self, "Thruster Mk2", "+25% velocidade", 200) },
             ItemId::NanoArmor =>
-                ItemDef { max_hp: 70.0, ..base_def(self, "Nano-Armadura", "+70 HP maximo", 60) },
+                ItemDef { max_hp: 70.0, ..base_def(self, "Nano-Armadura", "+70 HP maximo", 150) },
             ItemId::DeflectorArray =>
-                ItemDef { max_shield: 60.0, ..base_def(self, "Array Deflector", "+60 escudo maximo", 70) },
+                ItemDef { max_shield: 60.0, ..base_def(self, "Array Deflector", "+60 escudo maximo", 175) },
             ItemId::CapacitorBank =>
-                ItemDef { max_energy: 50.0, ..base_def(self, "Banco de Capacitores", "+50 energia maxima", 50) },
+                ItemDef { max_energy: 50.0, ..base_def(self, "Banco de Capacitores", "+50 energia maxima", 130) },
             ItemId::Autoloader =>
-                ItemDef { fire_rate_mul: 1.4, ..base_def(self, "Autoloader", "+40% cadencia de tiro", 90) },
+                ItemDef { fire_rate_mul: 1.4, ..base_def(self, "Autoloader", "+40% cadencia de tiro", 225) },
             ItemId::WarheadRounds =>
-                ItemDef { damage_mul: 1.7, ..base_def(self, "Balas Explosivas", "+70% dano de bala", 100) },
+                ItemDef { damage_mul: 1.7, ..base_def(self, "Balas Explosivas", "+70% dano de bala", 250) },
             ItemId::RegenerationCore =>
-                ItemDef { hp_regen: 6.0, ..base_def(self, "Core de Regeneracao", "+6 HP/s regeneracao", 120) },
+                ItemDef { hp_regen: 6.0, ..base_def(self, "Core de Regeneracao", "+6 HP/s regeneracao", 300) },
             ItemId::ShieldAmplifier =>
-                ItemDef { shield_regen_mul: 2.0, ..base_def(self, "Amplificador de Escudo", "+100% recarga de escudo", 90) },
+                ItemDef { shield_regen_mul: 2.0, ..base_def(self, "Amplificador de Escudo", "+100% recarga de escudo", 225) },
             ItemId::PowerConduit =>
-                ItemDef { energy_regen_mul: 1.8, ..base_def(self, "Conduto de Energia", "+80% recarga de energia", 80) },
+                ItemDef { energy_regen_mul: 1.8, ..base_def(self, "Conduto de Energia", "+80% recarga de energia", 200) },
             ItemId::PickupMagnet =>
-                ItemDef { pickup_radius: 150.0, ..base_def(self, "Magneto de Pickup", "+150 raio de coleta", 40) },
+                ItemDef { pickup_radius: 150.0, ..base_def(self, "Magneto de Pickup", "+150 raio de coleta", 100) },
             ItemId::HullReinforcement =>
-                ItemDef { max_hp: 50.0, max_shield: 30.0, ..base_def(self, "Reforco de Casco", "+50 HP e +30 escudo", 110) },
+                ItemDef { max_hp: 50.0, max_shield: 30.0, ..base_def(self, "Reforco de Casco", "+50 HP e +30 escudo", 275) },
             ItemId::OverclockModule =>
-                ItemDef { fire_rate_mul: 1.2, bullet_speed_mul: 1.2, ..base_def(self, "Modulo Overclock", "+20% cadencia e +20% vel. bala", 130) },
+                ItemDef { fire_rate_mul: 1.2, bullet_speed_mul: 1.2, ..base_def(self, "Modulo Overclock", "+20% cadencia e +20% vel. bala", 325) },
         }
     }
 }
@@ -113,10 +114,10 @@ impl Default for ItemBonus {
 
 // ── Recursos ──────────────────────────────────────────────────────────────────
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Serialize, Deserialize)]
 pub struct Credits(pub u32);
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Serialize, Deserialize)]
 pub struct PlayerInventory {
     pub items: Vec<ItemId>,
 }

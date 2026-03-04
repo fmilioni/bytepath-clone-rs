@@ -74,6 +74,7 @@ impl ActiveScenario {
 /// Contagem de kills dentro do cenário ativo.
 #[derive(Resource, Default)]
 pub struct ScenarioKillCount {
+    pub scenario_id: u32, // 0 = não inicializado
     pub kills: u32,
     pub goal: u32,
     pub boss: Option<BossKind>,

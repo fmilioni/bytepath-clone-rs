@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::{DamageEvent, DeathEvent, Energy, Health, Shield};
+use super::components::{DamageEvent, DeathEvent, Energy, Health, Shield, SelfHandlesDespawn};
 use crate::enemies::components::Enemy;
 use crate::player::components::Player;
 
@@ -61,23 +61,28 @@ pub fn apply_damage(
 }
 
 /// Despacha entidades mortas.
+/// Entidades com SelfHandlesDespawn são ignoradas — elas gerenciam seu próprio despawn.
 pub fn handle_deaths(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
     player_query: Query<Entity, With<Player>>,
+    self_handle_query: Query<(), With<SelfHandlesDespawn>>,
     mut next_state: ResMut<NextState<crate::states::GameState>>,
 ) {
     for event in death_events.read() {
         if let Ok(player_entity) = player_query.get_single() {
             if event.entity == player_entity {
-                // Jogador morreu → Game Over (apenas loga por enquanto)
                 info!("Player morreu! Game Over.");
                 next_state.set(crate::states::GameState::GameOver);
                 return;
             }
         }
 
-        // Inimigo ou outro entity morreu
+        // Pula entidades que gerenciam seu próprio despawn (ex: asteroides)
+        if self_handle_query.contains(event.entity) {
+            continue;
+        }
+
         if let Some(mut cmd) = commands.get_entity(event.entity) {
             cmd.despawn();
         }

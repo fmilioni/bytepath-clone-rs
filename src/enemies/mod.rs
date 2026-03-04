@@ -8,7 +8,7 @@ use crate::states::GameState;
 use spawner::{spawn_enemies, EnemySpawnTimer};
 use systems::{
     bomber_system, enemy_ai, enemy_player_collision, minion_spawner_system, sniper_system,
-    splitter_system, teleporter_system, update_sniper_warnings,
+    splitter_system, teleporter_system, tick_hit_cooldown, update_sniper_warnings,
 };
 
 pub struct EnemiesPlugin;
@@ -24,6 +24,7 @@ impl Plugin for EnemiesPlugin {
             (
                 spawn_enemies,
                 enemy_ai,
+                tick_hit_cooldown,
                 enemy_player_collision,
                 bomber_system,
                 sniper_system,

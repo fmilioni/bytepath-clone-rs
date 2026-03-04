@@ -3,7 +3,7 @@ use rand::Rng;
 
 use crate::combat::components::{ColliderRadius, DamageEvent, Health};
 use crate::constants::{HALF_H, HALF_W, Z_VFX};
-use crate::player::components::Player;
+use crate::player::components::{EnemyHitCooldown, Player};
 use crate::vfx::components::{Particle, ScreenShake};
 
 use super::components::{
@@ -125,25 +125,40 @@ pub fn enemy_ai(
     }
 }
 
+// ── Tick do cooldown de invencibilidade do player ────────────────────────────
+
+pub fn tick_hit_cooldown(
+    time: Res<Time>,
+    mut query: Query<&mut EnemyHitCooldown, With<Player>>,
+) {
+    let dt = time.delta_secs();
+    for mut cd in query.iter_mut() {
+        cd.remaining = (cd.remaining - dt).max(0.0);
+    }
+}
+
 // ── Colisão corpo-a-corpo (inimigo → player) ─────────────────────────────────
+// Contato com inimigo = morte instantânea (dano massivo que ignora escudo).
 
 pub fn enemy_player_collision(
-    enemy_query: Query<(&Transform, &EnemyStats, &ColliderRadius), (With<Enemy>, Without<BomberData>)>,
+    enemy_query: Query<(&Transform, &ColliderRadius), (With<Enemy>, Without<BomberData>)>,
     player_query: Query<(Entity, &Transform, &ColliderRadius), With<Player>>,
     mut damage_events: EventWriter<DamageEvent>,
 ) {
     let Ok((player_entity, player_transform, player_radius)) = player_query.get_single() else {
         return;
     };
+
     let player_pos = player_transform.translation.truncate();
 
-    for (enemy_transform, enemy_stats, enemy_radius) in enemy_query.iter() {
+    for (enemy_transform, enemy_radius) in enemy_query.iter() {
         let dist = player_pos.distance(enemy_transform.translation.truncate());
         if dist < player_radius.0 + enemy_radius.0 {
             damage_events.send(DamageEvent {
                 target: player_entity,
-                amount: enemy_stats.damage,
+                amount: 99999.0,
             });
+            break;
         }
     }
 }

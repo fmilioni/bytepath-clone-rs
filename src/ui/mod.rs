@@ -11,6 +11,26 @@ use crate::shop::components::{Credits, PlayerInventory};
 use crate::skill_tree::components::PlayerSkills;
 use crate::states::GameState;
 
+// ── Fonte com suporte a acentos ───────────────────────────────────────────────
+#[derive(Resource)]
+pub struct GameFont(pub Handle<Font>);
+
+fn load_game_font(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(GameFont(asset_server.load("fonts/font.ttf")));
+}
+
+/// Aplica a fonte correta em todo TextFont recém-criado (Added<TextFont>).
+/// Não precisa modificar nenhum spawn function — funciona automaticamente.
+fn apply_font_to_new_text(
+    game_font: Option<Res<GameFont>>,
+    mut q: Query<&mut TextFont, Added<TextFont>>,
+) {
+    let Some(gf) = game_font else { return; };
+    for mut tf in q.iter_mut() {
+        tf.font = gf.0.clone();
+    }
+}
+
 use boss_hud::{spawn_boss_hud, update_boss_hud, BossHudRoot};
 use hud::{spawn_hud, update_hud, HudRoot};
 use main_menu::{
@@ -192,6 +212,8 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<MainMenuState>()
+            .add_systems(Startup, load_game_font)
+            .add_systems(Update, apply_font_to_new_text)
             // ── Main Menu ─────────────────────────────────────────
             .add_systems(OnEnter(GameState::MainMenu), spawn_main_menu)
             .add_systems(OnExit(GameState::MainMenu), despawn_main_menu)

@@ -18,11 +18,13 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SelectedShipClass>()
-            // Câmera spawna uma vez, persiste em todos os estados
+            // Camera spawna uma vez, persiste em todos os estados
             .add_systems(Startup, spawn_camera)
-            // Jogador spawna ao entrar em Playing, some ao sair
+            // Jogador spawna ao entrar em Playing (guarda se ja existe via Player query)
             .add_systems(OnEnter(GameState::Playing), spawn_player)
-            .add_systems(OnExit(GameState::Playing), despawn_player)
+            // Despawna apenas ao sair do jogo de verdade (nao ao pausar)
+            .add_systems(OnEnter(GameState::ScenarioSelect), despawn_player)
+            .add_systems(OnEnter(GameState::GameOver), despawn_player)
             .add_systems(
                 Update,
                 (

@@ -20,7 +20,7 @@ pub fn award_credits(
 ) {
     for event in death_events.read() {
         if !event.was_enemy { continue; }
-        credits.0 += if boss_q.contains(event.entity) { 100 } else { 5 };
+        credits.0 += if boss_q.contains(event.entity) { 40 } else { 3 };
     }
 }
 

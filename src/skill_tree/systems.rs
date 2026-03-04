@@ -20,7 +20,7 @@ pub fn award_skill_points(
 ) {
     for event in death_events.read() {
         if !event.was_enemy { continue; }
-        skills.skill_points += if boss_q.contains(event.entity) { 50 } else { 2 };
+        skills.skill_points += if boss_q.contains(event.entity) { 20 } else { 1 };
     }
 }
 

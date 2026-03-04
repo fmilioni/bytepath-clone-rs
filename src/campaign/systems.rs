@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use crate::bosses::components::{ActiveBoss, Boss};
 use crate::bosses::spawner::spawn_boss;
@@ -6,6 +8,8 @@ use crate::combat::components::DeathEvent;
 use crate::enemies::components::Enemy;
 use crate::enemies::spawner::EnemySpawnTimer;
 use crate::pickups::Pickup;
+use crate::shop::components::{Credits, ItemId, PlayerInventory};
+use crate::skill_tree::components::PlayerSkills;
 use crate::vfx::components::{Particle, TrailSegment};
 use crate::weapons::components::Projectile;
 use crate::states::GameState;
@@ -16,27 +20,56 @@ use super::components::{
 
 const SAVE_PATH: &str = "save.json";
 
-// ── Persistência ──────────────────────────────────────────────────────────────
+// ── Save completo do jogador ──────────────────────────────────────────────────
 
-pub fn load_campaign_progress(mut progress: ResMut<CampaignProgress>) {
-    if let Ok(data) = std::fs::read_to_string(SAVE_PATH) {
-        if let Ok(loaded) = serde_json::from_str::<CampaignProgress>(&data) {
-            *progress = loaded;
-            info!("Progresso carregado: {} cenários completados", progress.completed.len());
-        }
-    }
+#[derive(Serialize, Deserialize, Default)]
+struct FullSaveData {
+    completed: HashSet<u32>,
+    credits: u32,
+    skill_points: u32,
+    unlocked_skills: HashSet<u32>,
+    inventory: Vec<ItemId>,
 }
 
-fn save_campaign_progress(progress: &CampaignProgress) {
-    match serde_json::to_string_pretty(progress) {
-        Ok(data) => {
-            if let Err(e) = std::fs::write(SAVE_PATH, data) {
-                warn!("Falha ao salvar progresso: {}", e);
-            } else {
-                info!("Progresso salvo.");
-            }
-        }
-        Err(e) => warn!("Falha ao serializar progresso: {}", e),
+pub fn load_save(
+    mut progress: ResMut<CampaignProgress>,
+    mut credits: ResMut<Credits>,
+    mut skills: ResMut<PlayerSkills>,
+    mut inventory: ResMut<PlayerInventory>,
+) {
+    let Ok(data) = std::fs::read_to_string(SAVE_PATH) else { return; };
+    let Ok(save) = serde_json::from_str::<FullSaveData>(&data) else { return; };
+
+    progress.completed = save.completed;
+    credits.0 = save.credits;
+    skills.skill_points = save.skill_points;
+    skills.unlocked = save.unlocked_skills;
+    skills.recalculate();
+    inventory.items = save.inventory;
+
+    info!("Save carregado: {} cenários, {}cr, {} skills, {} itens",
+        progress.completed.len(), credits.0, skills.unlocked.len(), inventory.items.len());
+}
+
+pub fn autosave(
+    progress: Res<CampaignProgress>,
+    credits: Res<Credits>,
+    skills: Res<PlayerSkills>,
+    inventory: Res<PlayerInventory>,
+) {
+    if !progress.is_changed() && !credits.is_changed()
+        && !skills.is_changed() && !inventory.is_changed() { return; }
+
+    let save = FullSaveData {
+        completed: progress.completed.clone(),
+        credits: credits.0,
+        skill_points: skills.skill_points,
+        unlocked_skills: skills.unlocked.clone(),
+        inventory: inventory.items.clone(),
+    };
+    match serde_json::to_string_pretty(&save) {
+        Ok(data) => { let _ = std::fs::write(SAVE_PATH, data); }
+        Err(e)   => warn!("Falha ao salvar: {}", e),
     }
 }
 
@@ -50,9 +83,12 @@ pub fn setup_scenario(
     mut spawn_timer: ResMut<EnemySpawnTimer>,
 ) {
     if active.id == 0 { return; }
+    // Retorna sem resetar se já foi inicializado para este cenário (volta do Paused)
+    if kill_count.scenario_id == active.id { return; }
 
     let def = active.def();
     *kill_count = ScenarioKillCount {
+        scenario_id: active.id,
         kills: 0,
         goal: def.kill_goal,
         boss: def.boss,
@@ -61,10 +97,9 @@ pub fn setup_scenario(
     };
     win_timer.0 = None;
 
-    // Ajusta intervalo de spawn ao do cenário
     spawn_timer.0 = Timer::from_seconds(def.spawn_interval_secs, TimerMode::Repeating);
 
-    info!("Cenário {} iniciado: mata {} inimigos", def.id, def.kill_goal);
+    info!("Cenario {} iniciado: mata {} inimigos", def.id, def.kill_goal);
 }
 
 // ── Tracking de kills ─────────────────────────────────────────────────────────
@@ -129,9 +164,7 @@ pub fn check_scenario_win(
 
     // Inicia timer de vitória quando cenário é completado
     if win_timer.0.is_none() && kill_count.is_complete() {
-        if progress.completed.insert(active.id) {
-            save_campaign_progress(&progress);
-        }
+        progress.completed.insert(active.id);
         win_timer.0 = Some(Timer::from_seconds(3.5, TimerMode::Once));
         info!("Cenário {} completado!", active.id);
     }
@@ -150,13 +183,16 @@ pub fn check_scenario_win(
 
 pub fn cleanup_gameplay(
     mut commands: Commands,
+    mut kill_count: ResMut<ScenarioKillCount>,
     enemy_q: Query<Entity, With<Enemy>>,
     pickup_q: Query<Entity, With<Pickup>>,
     projectile_q: Query<Entity, With<Projectile>>,
     particle_q: Query<Entity, With<Particle>>,
     trail_q: Query<Entity, With<TrailSegment>>,
 ) {
-    // Player é despawnado pelo PlayerPlugin (OnExit Playing → despawn_player)
+    // Reseta scenario_id para o proximo cenario poder inicializar
+    kill_count.scenario_id = 0;
+
     for e in enemy_q.iter()
         .chain(pickup_q.iter())
         .chain(projectile_q.iter())
