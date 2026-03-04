@@ -226,10 +226,6 @@ pub fn update_scenario_select_ui(
     mut title_q: Query<(&mut Text, &mut TextColor), (With<ScenarioTitleHint>, Without<ScenarioRow>, Without<ScenarioCountHint>, Without<ScenarioDescHint>)>,
     mut desc_q: Query<&mut Text, (With<ScenarioDescHint>, Without<ScenarioRow>, Without<ScenarioCountHint>, Without<ScenarioTitleHint>)>,
 ) {
-    if !selected.is_changed() && !progress.is_changed() {
-        return;
-    }
-
     // Atualiza rows
     for (row, mut text, mut color) in row_q.iter_mut() {
         let id = row.0;
@@ -240,8 +236,9 @@ pub fn update_scenario_select_ui(
         let is_boss = scenario.boss.is_some();
 
         let (label, col) = if !unlocked {
-            (format!("  ·  {:>2}. {:<32} [BLOQUEADO]", id, scenario.name),
-             Color::srgb(0.25, 0.25, 0.3))
+            let cursor = if is_selected { "▶" } else { " " };
+            (format!("  {} ·  {:>2}. {:<32} [BLOQUEADO]", cursor, id, scenario.name),
+             if is_selected { Color::srgb(0.5, 0.5, 0.6) } else { Color::srgb(0.25, 0.25, 0.3) })
         } else if completed {
             let cursor = if is_selected { "▶" } else { " " };
             (format!("  {} ✓ {:>2}. {:<32} [{}]", cursor, id, scenario.name, scenario.region.name()),
