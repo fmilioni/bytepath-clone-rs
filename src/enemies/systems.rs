@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::Rng;
 
-use crate::combat::components::{ColliderRadius, DamageEvent, Health};
+use crate::combat::components::{ColliderRadius, DamageEvent, Health, Shield};
 use crate::constants::{HALF_H, HALF_W, Z_VFX};
 use crate::player::components::{EnemyHitCooldown, Player};
 use crate::vfx::components::{Particle, ScreenShake};
@@ -138,11 +138,13 @@ pub fn tick_hit_cooldown(
 }
 
 // ── Colisão corpo-a-corpo (inimigo → player) ─────────────────────────────────
-// Contato com inimigo = morte instantânea (dano massivo que ignora escudo).
+// Contato com inimigo: drena todo o shield e aplica 30 de dano direto na HP.
+// O inimigo morre instantaneamente.
 
 pub fn enemy_player_collision(
-    enemy_query: Query<(&Transform, &ColliderRadius), (With<Enemy>, Without<BomberData>)>,
+    enemy_query: Query<(Entity, &Transform, &ColliderRadius), (With<Enemy>, Without<BomberData>)>,
     player_query: Query<(Entity, &Transform, &ColliderRadius), With<Player>>,
+    mut shield_query: Query<&mut Shield>,
     mut damage_events: EventWriter<DamageEvent>,
 ) {
     let Ok((player_entity, player_transform, player_radius)) = player_query.get_single() else {
@@ -151,13 +153,14 @@ pub fn enemy_player_collision(
 
     let player_pos = player_transform.translation.truncate();
 
-    for (enemy_transform, enemy_radius) in enemy_query.iter() {
+    for (enemy_entity, enemy_transform, enemy_radius) in enemy_query.iter() {
         let dist = player_pos.distance(enemy_transform.translation.truncate());
         if dist < player_radius.0 + enemy_radius.0 {
-            damage_events.send(DamageEvent {
-                target: player_entity,
-                amount: 99999.0,
-            });
+            if let Ok(mut shield) = shield_query.get_mut(player_entity) {
+                shield.current = 0.0;
+            }
+            damage_events.send(DamageEvent { target: player_entity, amount: 30.0 });
+            damage_events.send(DamageEvent { target: enemy_entity, amount: 99999.0 });
             break;
         }
     }

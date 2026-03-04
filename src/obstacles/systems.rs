@@ -114,7 +114,7 @@ pub fn asteroid_movement(
 // ── Colisão com player ────────────────────────────────────────────────────────
 
 pub fn asteroid_player_collision(
-    asteroid_query: Query<(&Transform, &ColliderRadius), With<Asteroid>>,
+    asteroid_query: Query<(Entity, &Asteroid, &Transform, &ColliderRadius)>,
     player_query: Query<(Entity, &Transform, &ColliderRadius), With<Player>>,
     mut damage_events: EventWriter<DamageEvent>,
 ) {
@@ -123,13 +123,18 @@ pub fn asteroid_player_collision(
     };
     let player_pos = player_transform.translation.truncate();
 
-    for (asteroid_transform, asteroid_radius) in asteroid_query.iter() {
+    for (asteroid_entity, asteroid, asteroid_transform, asteroid_radius) in asteroid_query.iter() {
         let dist = player_pos.distance(asteroid_transform.translation.truncate());
         if dist < player_radius.0 + asteroid_radius.0 {
-            damage_events.send(DamageEvent {
-                target: player_entity,
-                amount: 20.0,
-            });
+            match asteroid.size {
+                AsteroidSize::Large => {
+                    damage_events.send(DamageEvent { target: player_entity, amount: 99999.0 });
+                }
+                AsteroidSize::Small => {
+                    damage_events.send(DamageEvent { target: asteroid_entity, amount: 99999.0 });
+                    damage_events.send(DamageEvent { target: player_entity, amount: 20.0 });
+                }
+            }
         }
     }
 }

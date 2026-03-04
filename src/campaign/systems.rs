@@ -6,6 +6,7 @@ use crate::bosses::components::{ActiveBoss, Boss};
 use crate::bosses::spawner::spawn_boss;
 use crate::combat::components::DeathEvent;
 use crate::enemies::components::Enemy;
+use crate::obstacles::Asteroid;
 use crate::enemies::spawner::EnemySpawnTimer;
 use crate::pickups::Pickup;
 use crate::shop::components::{Credits, ItemId, PlayerInventory};
@@ -189,8 +190,8 @@ pub fn cleanup_gameplay(
     projectile_q: Query<Entity, With<Projectile>>,
     particle_q: Query<Entity, With<Particle>>,
     trail_q: Query<Entity, With<TrailSegment>>,
+    asteroid_q: Query<Entity, With<Asteroid>>,
 ) {
-    // Reseta scenario_id para o proximo cenario poder inicializar
     kill_count.scenario_id = 0;
 
     for e in enemy_q.iter()
@@ -198,6 +199,7 @@ pub fn cleanup_gameplay(
         .chain(projectile_q.iter())
         .chain(particle_q.iter())
         .chain(trail_q.iter())
+        .chain(asteroid_q.iter())
     {
         if let Some(cmd) = commands.get_entity(e) {
             cmd.despawn_recursive();
